@@ -96,7 +96,8 @@ class Sold(db.Model):
         self.shares_sold = shares_sold
         self.price_sold = price_sold
 
-# Create Schemas (only include data you want to show)
+# Create
+# mas (only include data you want to show)
 class UsersSchema(ma.Schema):
     class Meta:
         fields = ('username', 'cash')
@@ -120,7 +121,7 @@ sold_schema = SoldSchema(many=True)
 os.environ.get("API_KEY")
 
 if not os.environ.get("API_KEY"):
-    raise RuntimeError("API_KEY not set")
+   raise RuntimeError("API_KEY not set")
 
 @application.route("/")
 def landing():

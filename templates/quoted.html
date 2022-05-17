@@ -6,6 +6,9 @@
 
 {% block main %}
     <!-- Demonstrating different methods of displaying data -->
-    <div>{{ data.name }}</div>
-    <div>{{ data.price }}</div>
+    <br>
+    <br>
+    <p style="font-size:30px">{{ data.symbol }} ({{ data.name }}) has a price of</p>
+    <p style="font-size:30px">${{ data.price }}</p>
+
 {% endblock %}

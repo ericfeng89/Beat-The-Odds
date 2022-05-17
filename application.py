@@ -170,6 +170,7 @@ def index():
             print("shares_list:", shares_list)
             #("SELECT current_shares FROM portfolio WHERE user_id = :id AND symbol = :symbol", id = user, symbol = symbol_index)
             # Iterate over list of dicts
+            share_index = 0
             for i in range(len(shares_list)):
                 share_index = shares_list[i].current_shares
                 print("share_index:", share_index)
@@ -199,17 +200,17 @@ def buy():
 
         # User error handling: stop empty symbol and shares fields, stop invalid symbols, and negative share numbers
         if not symbol:
-            return errorPage(title="No Data", info = "Please enter a stock symbol, i.e. AMZN", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Please enter a stock symbol, i.e. AMZN", imageSource = "no-data.svg")
         result = lookup(symbol)
         if result == None:
-             return errorPage(title = "Bad Request", info = "Please enter a valid stock symbol", file="animated-400.svg")
+             return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a valid stock symbol", imageSource="animated-400.svg")
         shares = int(request.form.get("shares"))
         if symbol == None:
-            return errorPage(title="No Data", info = "Please enter number of shares", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Please enter number of shares", imageSource = "no-data.svg")
         if shares < 0:
-             return errorPage(title = "Bad Request", info = "Please enter a positive number", file="animated-400.svg")
+             return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a positive number", imageSource="animated-400.svg")
         if shares == 0:
-             return errorPage(title="No Data", info = "Transaction will not proceed", file = "no-data.svg")
+             return errorPage(blockTitle="No Data", errorMessage = "Transaction will not proceed", imageSource = "no-data.svg")
 
         # Obtain user id
         user = session["user_id"]
@@ -225,11 +226,11 @@ def buy():
 
         # Calculate total cost
         total = shares * price
-        
+
         # User error handling: stop user if seeking to buy beyond cash balance
         if available < total:
-             return errorPage(title="Forbidden", info = "Insufficient funds to complete transaction", file="animated-403.svg")
-        
+             return errorPage(blockTitle="Forbidden", errorMessage = "Insufficient funds to complete transaction", imageSource="animated-403.svg")
+
         # Continue with transaction and calculate remaining cash
         remaining = available - total
 
@@ -294,7 +295,7 @@ def history():
     if bought_list == []:
         # Will return empty list if user didn't buy anything
         return render_template("history.html", bought_list_length = 0, bought_list = [], sold_list_length = 0, sold_list = [])
-        
+
     # Else query sold table
     else:
         # Obtain sell history
@@ -321,11 +322,11 @@ def login():
 
         # Ensure username was submitted
         if not request.form.get("username"):
-            return errorPage(title="No Data", info = "Must provide username", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Must provide username", imageSource = "no-data.svg")
 
         # Ensure password was submitted
         elif not request.form.get("password"):
-            return errorPage(title="No Data", info = "Must provide password", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Must provide password", imageSource = "no-data.svg")
 
         # Query database for username
         rows = Users.query.filter_by(username=request.form.get("username")).first()
@@ -337,13 +338,13 @@ def login():
 
         # NoneType is returned and therefore username does't exist in database
         except AttributeError:
-             return errorPage(title="No Data", info = "User doesn't exist", file = "no-data.svg")
+             return errorPage(blockTitle="No Data", errorMessage = "User doesn't exist", imageSource = "no-data.svg")
 
         # Finish logging user in
         else:
             # Ensure username and password is correct
             if rows.username != request.form.get("username") or not check_password_hash(rows.hash, request.form.get("password")):
-                return errorPage(title = "Unauthorized", info = "invalid username and/or password", file="animated-401.svg")
+                return errorPage(blockTitle = "Unauthorized", errorMessage = "invalid username and/or password", imageSource="animated-401.svg")
 
             # Remember which user has logged in
             session["user_id"] = rows.id
@@ -377,9 +378,9 @@ def quote():
         data = lookup(symbol)
         # User error handling: stop empty symbol and shares fields, stop invalid symbols, and negative share numbers
         if not symbol:
-            return errorPage(title="No Data", info = "Please enter a stock symbol, i.e. AMZN", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Please enter a stock symbol, i.e. AMZN", imageSource = "no-data.svg")
         if data == None:
-            return errorPage(title = "Bad Request", info = "Please enter a valid stock symbol", file="animated-400.svg")
+            return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a valid stock symbol", imageSource="animated-400.svg")
         return render_template("quoted.html", data = data)
 
 
@@ -393,20 +394,20 @@ def register():
 
         # User error handling: stop empty username and password fields, stop usernames already taken, stop non-matching passwords
         if not username:
-            return errorPage(title="No Data", info = "Please enter a username", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Please enter a username", imageSource = "no-data.svg")
 
         existing = Users.query.filter_by(username=username)
         print("EXISTING USER: ", existing)
         #("SELECT * FROM users WHERE username = :username", username=username)
         if existing == username:
             print("EXISTING USER ALREADY!: ", existing)
-            return errorPage(title="Forbidden", info = "Username already taken", file="animated-403.svg")
+            return errorPage(blockTitle="Forbidden", errorMessage = "Username already taken", imageSource="animated-403.svg")
         password = request.form.get("password")
         if not password:
-            return errorPage(title="No Data", info = "Please enter a password", file = "no-data.svg")
+            return errorPage(blockTitle="No Data", errorMessage = "Please enter a password", imageSource = "no-data.svg")
         confirmation = request.form.get("confirmation")
         if password != confirmation:
-            return errorPage(title = "Unauthorized", info = "Passwords do not match", file="animated-401.svg")
+            return errorPage(blockTitle = "Unauthorized", errorMessage = "Passwords do not match", imageSource="animated-401.svg")
         hashed = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
 
         # All users automatically recieve $10,000 to start with
@@ -450,18 +451,18 @@ def sell():
 
         # If user doesn't own stock, render error
         if symbol == '':
-            return errorPage(title="Forbidden", info = "Must own stock before selling", file="animated-403.svg")
+            return errorPage(blockTitle="Forbidden", errorMessage = "Must own stock before selling", imageSource="animated-403.svg")
 
         # Obtain number of shares from user
         shares = int(request.form.get("shares"))
 
         # Prevent user from submitting form with no number, negative number, or zero
         if not shares:
-             return errorPage(title="No Data", info = "Please enter number of shares", file = "no-data.svg")
+             return errorPage(blockTitle="No Data", errorMessage = "Please enter number of shares", imageSource = "no-data.svg")
         if shares < 0:
-             return errorPage(title = "Bad Request", info = "Please enter a positive number", file="animated-400.svg")
+             return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a positive number", imageSource="animated-400.svg")
         if shares == 0:
-             return errorPage(title="No Data", info = "Transaction will not proceed", file = "no-data.svg")
+             return errorPage(blockTitle="No Data", errorMessage = "Transaction will not proceed", imageSource = "no-data.svg")
 
         # Obtain data for stock selected
         shares_held_list = Portfolio.query.filter(Portfolio.user_id == user, Portfolio.symbol == symbol).first()
@@ -469,12 +470,14 @@ def sell():
         print("shares_held_list:", shares_held_list)
 
         # Obtain number of shares for stock selected
-        shares_held = shares_held_list.current_shares
+        shares_held = 0
+        if shares_held_list:
+            shares_held = shares_held_list.current_shares
         print("shares_held:", shares_held)
 
         # Prevent user from selling more than they have
         if shares > shares_held:
-            return errorPage(title="Forbidden", info = "Unable to sell more than you have", file="animated-403.svg")
+            return errorPage(blockTitle="Forbidden", errorMessage = "Unable to sell more than you have", imageSource="animated-403.svg")
 
         # Obtain available cash
         available = (Users.query.filter_by(id = user).first()).cash

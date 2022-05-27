@@ -8,7 +8,7 @@ from flask_marshmallow import Marshmallow
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
-from helpers import errorPage, login_required, lookup, usd
+from helpers import errorPage, login_required, usd
 
 # Configure application
 application = Flask(__name__)
@@ -38,7 +38,7 @@ application.config['SESSION_REDIS'] = redis.from_url('redis://localhost:6379')
 server_session = Session(application)
 
 # Configure Flask to use local SQLite3 database with SQLAlchemy
-application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'finances.db')
+application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'house_data.db')
 application.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 application.config['SQLALCHEMY_ECHO'] = True
 db = SQLAlchemy(application)
@@ -47,6 +47,38 @@ db = SQLAlchemy(application)
 ma = Marshmallow(application)
 
 # Create classes/models
+class mytable(db.Model):
+    house_id = db.Column(db.Integer, primary_key=True)
+    actual_price = db.Column(db.Float)
+    proj_price = db.Column(db.Float)
+    actual_crypto = db.Column(db.Integer)
+    proj_crypto = db.Column(db.Integer)
+    bedrooms = db.Column(db.Integer)
+    bathrooms = db.Column(db.Integer)
+    acres = db.Column(db.Float)
+    floors = db.Column(db.Integer)
+    waterfront = db.Column(db.Integer)
+    view = db.Column(db.Integer)
+    grade = db.Column(db.Integer)
+    sqft_above = db.Column(db.Integer)
+    yr_built = db.Column(db.Integer)
+
+    def __init__(self, actual_price, proj_price, actual_crypto, proj_crypto, bedrooms, bathrooms, acres, floors, waterfront, view, grade, sqft_above, yr_built):
+        self.actual_price = actual_price
+        self.proj_price = proj_price
+        self.actual_crypto = actual_crypto
+        self.proj_crypto = proj_crypto
+        self.bedrooms = bedrooms
+        self.bathrooms = bathrooms
+        self.acres = acres
+        self.floors = floors
+        self.waterfront = waterfront
+        self.view = view
+        self.grade = grade
+        self.sqft_above = sqft_above
+        self.yr_built = yr_built
+
+
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(length=50))
@@ -59,42 +91,44 @@ class Users(db.Model):
         self.cash = cash
 class Portfolio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    house_id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
-    symbol = db.Column(db.String(length=5))
-    current_shares = db.Column(db.Integer)
+
     # Create initializer/constructor
-    def __init__(self, user_id, symbol, current_shares):
+    def __init__(self, house_id, user_id):
+        self.house_id = house_id
         self.user_id = user_id
-        self.symbol = symbol
-        self.current_shares = current_shares
+
+
 class Bought(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     buyer_id = db.Column(db.Integer)
+    house_id = db.Column(db.Integer)
     time = db.Column(db.String(length=100))
-    symbol = db.Column(db.String(length=5))
-    shares_bought = db.Column(db.Integer)
     price_bought = db.Column(db.Float)
+    crypto_bought = db.Column(db.Integer)
     # Create initializer/constructor
-    def __init__(self, buyer_id, time, symbol, shares_bought, price_bought):
+    def __init__(self, buyer_id, time, house_id, price_bought, crypto_bought):
         self.buyer_id = buyer_id
+        self.house_id = house_id
         self.time = time
-        self.symbol = symbol
-        self.shares_bought = shares_bought
         self.price_bought = price_bought
+        self.crypto_bought = crypto_bought
+
 class Sold(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     seller_id = db.Column(db.Integer)
+    house_id = db.Column(db.Integer)
     time = db.Column(db.String(length=100))
-    symbol = db.Column(db.String(length=5))
-    shares_sold = db.Column(db.Integer)
     price_sold = db.Column(db.Float)
+    crypto_sold = db.Column(db.Integer)
     # Create initializer/constructor
-    def __init__(self, seller_id, time, symbol, shares_sold, price_sold):
+    def __init__(self, seller_id, time, house_id, price_sold, crypto_sold):
         self.seller_id = seller_id
+        self.house_id = house_id
         self.time = time
-        self.symbol = symbol
-        self.shares_sold = shares_sold
-        self.price_sold = price_sold
+        self.price_bought = price_sold
+        self.crypto_bought = crypto_sold
 
 # Create
 # mas (only include data you want to show)
@@ -103,13 +137,13 @@ class UsersSchema(ma.Schema):
         fields = ('username', 'cash')
 class PortfolioSchema(ma.Schema):
     class Meta:
-        fields = ('symbol', 'current_shares')
+        field = ('house_id')
 class BoughtSchema(ma.Schema):
     class Meta:
-        fields = ('time', 'symbol', 'shares_bought', 'price_bought')
+        fields = ('time', 'house_id', 'price_bought', 'crypto_bought')
 class SoldSchema(ma.Schema):
     class Meta:
-        fields = ('time', 'symbol', 'shares_sold', 'price_sold')
+        fields = ('time', 'house_id', 'price_sold', 'crypto_sold')
         
 # Initialize Schemas
 users_schema = UsersSchema
@@ -135,59 +169,50 @@ def index():
     print("user: ", user)
 
     # Obtain available cash
-    available = (Users.query.filter_by(id = user).first()).cash
-    print("available: ", available)
+    availableCash = (Users.query.filter_by(id = user).first()).cash
+    print("availableCash: ", availableCash)
 
-    # Obtain at least one stock symbol that the user possesses
-    symbol_list = Portfolio.query.filter_by(user_id = user).all()
-    print("symbol list: ", symbol_list)
+    # Obtain at least one house id that the user possesses
+    houseList = Portfolio.query.filter_by(user_id = user).all()
+    print("houseList: ", houseList)
 
-    # If user has no stocks return minimum information
-    if symbol_list == []:
-        return render_template("index.html", available = usd(available), grand_total = usd(available),  total = [], shares = [], price = [], symbols = [], symbol_list_length = 0)
-    # If user owns stocks return the remaining information
+    # If user has no properties return minimum information
+    if houseList == []:
+        return render_template("index.html", availableCash = usd(availableCash), grandTotal = usd(availableCash),  total = [], price = [], houseList = [], houseListLength = 0)
+    # If user owns properties return the remaining information
     else:
         # Calculate symbol list length for iteration in index.html
-        symbol_list_length = len(symbol_list)
-        print("symbol_list_length: ", symbol_list_length)
+        houseListLength = len(houseList)
+        print("houseListLength: ", houseListLength)
 
         # Create empty arrays to store values
-        symbols = []
+        houses = []
         price = []
-        shares = []
-        total = []
-        # Calculate value of each holding of stock in portfolio
-        for i in range(len(symbol_list)):
-            symbol_index = symbol_list[i].symbol
-            print("symbol_index:", symbol_index)
-            symbols.append(symbol_index)
-            # Obtain price of stock using iex API
-            price_index = float(lookup(symbol_index).get('price'))
-            print("price_index:", price_index)
-            price.append(price_index)
-            # Obtain number of shares that the user possesses to calculate total value
-            shares_list = Portfolio.query.filter_by(user_id = user, symbol = symbol_index).all()
-            print("shares_list:", shares_list)
-            #("SELECT current_shares FROM portfolio WHERE user_id = :id AND symbol = :symbol", id = user, symbol = symbol_index)
-            # Iterate over list of dicts
-            share_index = 0
-            for i in range(len(shares_list)):
-                share_index = shares_list[i].current_shares
-                print("share_index:", share_index)
-                shares.append(share_index)
-            # Calculate total value of stocks
-            calc = share_index * price_index
-            print("calc:", calc)
-            total.append(calc)
-        print("symbols:", symbols)
+        totalCost = 0
+
+        # Calculate value of each holding of property in portfolio
+        for i in range(len(houseList)):
+            houseIndex = houseList[i].house_id
+            print("houseIndex:", houseIndex)
+            houses.append(houseIndex)
+
+            # Obtain price of property using iex API
+            priceIndex = mytable.query.filter_by(house_id = houseIndex).first().proj_price
+            print("priceIndex:", priceIndex)
+            price.append(priceIndex)
+
+            # calculate total price of properties
+            totalCost = totalCost + price[i]
+            print("totalCost:", totalCost)
+
+        print("houses:", houses)
         print("price:", price)
-        print("shares:", shares)
-        print("total:", total)
+
         # Calculate grand total value of all assets
-        grand_total = sum(total) + available
+        grandTotal = totalCost + availableCash
 
         # Render page with information
-        return render_template("index.html", symbol_list = symbol_list, symbol_list_length = symbol_list_length, shares = shares, price = price, total = total, available = usd(available), grand_total = usd(grand_total))
+        return render_template("index.html", houses = houses, houseListLength = houseListLength, price = price, availableCash = usd(availableCash), grandTotal = usd(grandTotal))
 
 
 @application.route("/buy", methods=["GET", "POST"])
@@ -196,88 +221,61 @@ def buy():
     if request.method == "GET":
         return render_template("buy.html")
     else:
-        symbol = request.form.get("symbol").upper()
+        houseID = request.form.get("houseID")
 
         # User error handling: stop empty symbol and shares fields, stop invalid symbols, and negative share numbers
-        if not symbol:
-            return errorPage(blockTitle="No Data", errorMessage = "Please enter a stock symbol, i.e. AMZN", imageSource = "no-data.svg")
-        result = lookup(symbol)
-        if result == None:
-             return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a valid stock symbol", imageSource="animated-400.svg")
-        shares = int(request.form.get("shares"))
-        if symbol == None:
-            return errorPage(blockTitle="No Data", errorMessage = "Please enter number of shares", imageSource = "no-data.svg")
-        if shares < 0:
-             return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a positive number", imageSource="animated-400.svg")
-        if shares == 0:
-             return errorPage(blockTitle="No Data", errorMessage = "Transaction will not proceed", imageSource = "no-data.svg")
+        if not houseID:
+            return errorPage(blockTitle="No Data", errorMessage = "Please enter a valid house ID", imageSource = "no-data.svg")
+
+        # if property already bought, prevent user from buying
+        if Portfolio.query.filter_by(house_id = houseID).first():
+            return errorPage(blockTitle="Forbidden", errorMessage="Property has already been purchased",
+                             imageSource="animated-403.svg")
 
         # Obtain user id
         user = session["user_id"]
         print("user:", user)
 
         # Obtain available cash
-        available = (Users.query.filter_by(id = user).first()).cash
-        print("available:", available)
+        availableCash = (Users.query.filter_by(id = user).first()).cash
+        print("available:", availableCash)
 
-        # Use IEX API to get price of stock
-        price = lookup(symbol).get('price')
+        # Get current price of property
+        price = mytable.query.filter_by(house_id = houseID).first().proj_price
         print("price:", price)
 
-        # Calculate total cost
-        total = shares * price
-
         # User error handling: stop user if seeking to buy beyond cash balance
-        if available < total:
+        if availableCash < price:
              return errorPage(blockTitle="Forbidden", errorMessage = "Insufficient funds to complete transaction", imageSource="animated-403.svg")
 
         # Continue with transaction and calculate remaining cash
-        remaining = available - total
+        remainingCash = availableCash - price
 
         # Obtain year, month, day, hour, minute, second
         now = datetime.now()
         time = now.strftime("%d/%m/%Y %H:%M:%S")
 
         # Update cash field in Users Table and create entry into Bought Table
-        update_cash = Users.query.filter_by(id = user).first()
-        update_cash.cash = remaining
+        updatedCash = Users.query.filter_by(id = user).first()
+        updatedCash.cash = remainingCash
         db.session.commit()
         #"UPDATE users SET cash = :remaining WHERE id = :id", remaining = remaining, id = user)
 
         # Log transaction history
-        log_purchase = Bought(user, time, symbol, shares, price)
-        db.session.add(log_purchase)
+        logPurchase = Bought(user, time, houseID, price, 0)
+        db.session.add(logPurchase)
         db.session.commit()
         #("INSERT INTO bought (buyer_id, time, symbol, shares_bought, price_bought) VALUES (:buyer_id, :time, :symbol, :shares_bought, :price_bought)", time = datetime.datetime.now(), symbol = symbol, shares_bought = shares, price_bought = price, buyer_id = user)
 
-        # If buyer never bought this stock before
-        portfolio = Portfolio.query.filter(Portfolio.user_id == user, Portfolio.symbol == symbol).first()
+        # If buyer never bought this property before
+        portfolio = Portfolio.query.filter(Portfolio.user_id == user, Portfolio.house_id == houseID).first()
         print("portfolio", portfolio)
 
-        #("SELECT symbol FROM portfolio WHERE user_id = :id AND symbol = :symbol", id = user, symbol = symbol)
-        if portfolio == None:
-            db.session.add(Portfolio(user, symbol, shares))
-            db.session.commit()
-            #("INSERT INTO portfolio (user_id, symbol, current_shares) VALUES (:user_id, :symbol, :current_shares)", user_id = user, symbol = symbol, current_shares = shares)
-        else:
-            stock_owned = portfolio.symbol
-            print("stock_owned", stock_owned)
-            # Obtain current number of shares from portfolio
-            current_shares = portfolio.current_shares
-            print("current shares", current_shares)
-            #("SELECT current_shares FROM portfolio WHERE user_id = :id AND symbol = :symbol", id = user, symbol = symbol)
+        # Add to portfolio
+        db.session.add(Portfolio(houseID, user))
+        db.session.commit()
 
-            # Calculate new amount of shares
-            new_shares = shares + current_shares
-            print("Total shares now:", new_shares)
-
-            # Update portfolio table with new amount of shares
-            portfolio.current_shares = new_shares
-            print("Update db with new total:", portfolio.current_shares)
-            db.session.commit()
-            #("UPDATE portfolio SET current_shares = :new_shares WHERE user_id = :id", new_shares = new_shares, id = user)
-
-        return render_template("bought.html", symbol = symbol, shares = shares, total = usd(total))
+        return render_template("bought.html", houseID = houseID, price = usd(price))
 
 
 @application.route("/history")
@@ -291,7 +289,7 @@ def history():
     print("bought_list:", bought_list)
     #("SELECT time, symbol, shares_bought, price_bought FROM bought WHERE buyer_id = :id", id = user)
 
-    # If user didn't sell stocks, only query bought table, if didn't buy anything, return empty
+    # If user didn't sell propertys, only query bought table, if didn't buy anything, return empty
     if bought_list == []:
         # Will return empty list if user didn't buy anything
         return render_template("history.html", bought_list_length = 0, bought_list = [], sold_list_length = 0, sold_list = [])
@@ -374,13 +372,15 @@ def quote():
     if request.method == "GET":
         return render_template("quote.html")
     else:
-        symbol = request.form.get("symbol")
-        data = lookup(symbol)
+        houseID = request.form.get("houseID")
+        data = mytable.query.filter_by(house_id = houseID).first()
+        print("data:", data)
+
         # User error handling: stop empty symbol and shares fields, stop invalid symbols, and negative share numbers
-        if not symbol:
-            return errorPage(blockTitle="No Data", errorMessage = "Please enter a stock symbol, i.e. AMZN", imageSource = "no-data.svg")
-        if data == None:
-            return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a valid stock symbol", imageSource="animated-400.svg")
+        if not houseID:
+            return errorPage(blockTitle="Bad Request", errorMessage="Please enter a valid house ID",
+                             imageSource="bad-request.svg")
+
         return render_template("quoted.html", data = data)
 
 
@@ -410,8 +410,8 @@ def register():
             return errorPage(blockTitle = "Unauthorized", errorMessage = "Passwords do not match", imageSource="animated-401.svg")
         hashed = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
 
-        # All users automatically recieve $10,000 to start with
-        cash = 10000
+        # All users automatically recieve $10,000,000 to start with
+        cash = 10000000
 
         # Add and commit the data into database
         db.session.add(Users(username, hashed, cash))
@@ -433,72 +433,38 @@ def sell():
     user = session["user_id"]
 
     if request.method == "GET":
-        # Obtain stock symbols that the user possesses
-        symbol_list = Portfolio.query.filter_by(user_id = user).all()
+        # Obtain properties that the user possesses
+        houseList = Portfolio.query.filter_by(user_id = user).all()
         #("SELECT symbol FROM portfolio WHERE user_id = :id", id = user)
 
-        # If user never bought anaything, return empty values
-        if symbol_list == []:
-            return render_template("sell.html", symbol_list_length = 0)
-        # Else display stock symbols in drop-down menu
+        # If user never bought anything, return empty values
+        if houseList == []:
+            return render_template("sell.html", houseList = houseList, houseListLength = 0)
+        # Else display property symbols in drop-down menu
+
         else:
-            symbol_list_length = len(symbol_list)
-            # Render sell page with list of stocks the user owns
-            return render_template("sell.html", symbol_list = symbol_list, symbol_list_length = symbol_list_length)
+            houseListLength = len(houseList)
+            # Render sell page with list of properties the user owns
+            return render_template("sell.html", houseList = houseList, houseListLength = houseListLength)
     else:
-        # Obtain stock symbol from user
-        symbol = request.form.get("symbol")
+        # Obtain property ID from user
+        houseID = request.form.get("houseID")
 
-        # If user doesn't own stock, render error
-        if symbol == '':
-            return errorPage(blockTitle="Forbidden", errorMessage = "Must own stock before selling", imageSource="animated-403.svg")
+        # If user doesn't own property, render error
+        if houseID == '':
+            return errorPage(blockTitle="Forbidden", errorMessage = "Must own property before selling", imageSource="animated-403.svg")
 
-        # Obtain number of shares from user
-        shares = int(request.form.get("shares"))
-
-        # Prevent user from submitting form with no number, negative number, or zero
-        if not shares:
-             return errorPage(blockTitle="No Data", errorMessage = "Please enter number of shares", imageSource = "no-data.svg")
-        if shares < 0:
-             return errorPage(blockTitle = "Bad Request", errorMessage = "Please enter a positive number", imageSource="animated-400.svg")
-        if shares == 0:
-             return errorPage(blockTitle="No Data", errorMessage = "Transaction will not proceed", imageSource = "no-data.svg")
-
-        # Obtain data for stock selected
-        shares_held_list = Portfolio.query.filter(Portfolio.user_id == user, Portfolio.symbol == symbol).first()
-        #("SELECT current_shares FROM portfolio WHERE user_id = :id AND symbol = :symbol", id = user, symbol = symbol)
-        print("shares_held_list:", shares_held_list)
-
-        # Obtain number of shares for stock selected
-        shares_held = 0
-        if shares_held_list:
-            shares_held = shares_held_list.current_shares
-        print("shares_held:", shares_held)
-
-        # Prevent user from selling more than they have
-        if shares > shares_held:
-            return errorPage(blockTitle="Forbidden", errorMessage = "Unable to sell more than you have", imageSource="animated-403.svg")
 
         # Obtain available cash
-        available = (Users.query.filter_by(id = user).first()).cash
+        availableCash = (Users.query.filter_by(id = user).first()).cash
         #("SELECT cash FROM users WHERE id = :id", id = user)
 
-        # Obtain current price of stock
-        price = lookup(symbol).get('price')
-
-        # Calculate new number of shares
-        updated_shares = shares_held - shares
-
-        # Remove stocks from user's portfolio by number of shares indicated
-        portfolio = Portfolio.query.filter(Portfolio.user_id == user, Portfolio.symbol == symbol).first()
-        print("portfolio", portfolio)
-        portfolio.current_shares = updated_shares
-        print("Update db with new total:", portfolio.current_shares)
-        db.session.commit()
-        #("UPDATE portfolio SET current_shares = :updated_shares WHERE user_id = :id", updated_shares = updated_shares, id = user)
+        # Obtain current price of property
+        price = mytable.query.filter_by(house_id = houseID).first().proj_price
+        print("price:", price)
 
         # Calculate new amount of available cash
-        total = available + (price * shares)
+        total = availableCash + price
 
         # Update cash field in Users Table
         update_cash = Users.query.filter_by(id = user).first()
@@ -511,13 +477,17 @@ def sell():
         time = now.strftime("%d/%m/%Y %H:%M:%S")
 
         # Log transaction history
-        log_sale = Sold(user, time, symbol, shares, price)
+        log_sale = Sold(user, time, houseID, price, 0)
         db.session.add(log_sale)
         db.session.commit()
         #("INSERT INTO sold (seller_id, time, symbol, shares_sold, price_sold) VALUES (:seller_id, :time, :symbol, :shares_sold, :price_sold)", time = datetime.datetime.now(), symbol = symbol, shares_sold = shares, price_sold = price, seller_id = user)
 
+        # remove from portfolio
+        Portfolio.query.filter_by(house_id = houseID).delete()
+        db.session.commit()
+
         # Render success page with infomation about transaction
-        return render_template("sold.html", shares = shares, symbol = symbol.upper())
+        return render_template("sold.html", houseID = houseID)
 
 
 # def errorhandler(e):

@@ -23,9 +23,10 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+"""
+def lookup(id):
+    Look up quote for symbol.
 
-def lookup(symbol):
-    """Look up quote for symbol."""
 
     # Contact API
     try:
@@ -35,17 +36,22 @@ def lookup(symbol):
     except requests.RequestException:
         return None
 
+    try:
+        response = mytable.query.filter_by(house_id = id).all()
+    except requests.RequestException:
+        return None
+
     # Parse response
     try:
         quote = response.json()
         return {
-            "name": quote["companyName"],
+            "house_id": quote["house_id"],
             "price": float(quote["latestPrice"]),
-            "symbol": quote["symbol"]
+            "crypto": quote["la"]
         }
     except (KeyError, TypeError, ValueError):
         return None
-
+"""
 
 def usd(value):
     """Format value as USD."""

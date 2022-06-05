@@ -16,8 +16,8 @@ function initMap() {
 
 window.initMap = initMap;
 
-
 /*
+
 // Google Map
 let map;
 
@@ -326,7 +326,7 @@ $(document).ready(function() {
     };
 
     // Get DOM node in which map will be instantiated
-    let canvas = $("#map-canvas").get(0);
+    let canvas = $("#map").get(0);
 
     // Instantiate map
     map = new google.maps.Map(canvas, options);
@@ -383,9 +383,9 @@ function addMarker(place)
             };
             articleList += '</ul>';
 
-     //       let info = `<p>Recent news in ${place.place_name}:</p>` + articleList
+            let info = `<p>Recent news in ${place.place_name}:</p>` + articleList
 
-    //        showInfo(marker, info);
+            showInfo(marker, info);
         });
     });
 }
@@ -399,15 +399,15 @@ function configure()
 
         // If info window isn't open
         // http://stackoverflow.com/a/12410385
-  //      if (!info.getMap || !info.getMap())
- //       {
-     //update();
- //       }
+        if (!info.getMap || !info.getMap())
+        {
+            update();
+        }
     });
 
     // Update UI after zoom level changes
     google.maps.event.addListener(map, "zoom_changed", function() {
- //       update();
+        update();
     });
 
     // Configure typeahead
@@ -435,12 +435,12 @@ function configure()
         map.setCenter({lat: parseFloat(suggestion.latitude), lng: parseFloat(suggestion.longitude)});
 
         // Update UI
-   //     update();
+        update();
     });
 
     // Hide info window when text box has focus
     $("#q").focus(function(eventData) {
-//        info.close();
+        info.close();
     });
 
     // Re-enable ctrl- and right-clicking (and thus Inspect Element) on Google Map
@@ -452,7 +452,7 @@ function configure()
     }, true);
 
     // Update UI
- //update();
+    update();
 
     // Give focus to text box
     $("#q").focus();
@@ -504,13 +504,13 @@ function showInfo(marker, content)
     div += "</div>";
 
     // Set info window's content
- //   info.setContent(div);
+    info.setContent(div);
 
     // Open info window (if not already open)
- //   info.open(map, marker);
+    info.open(map, marker);
 }
 
-/*
+
 // Update UI's markers
 function update()
 {
@@ -538,4 +538,5 @@ function update()
     });
 
 };
+
 */

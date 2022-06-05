@@ -127,7 +127,7 @@ h1 {
     position: relative;
     margin-bottom: 0.5rem;
 }
-  
+
 .form-label-group > input,
 .form-label-group > label {
     padding: var(--input-padding-y) var(--input-padding-x);
@@ -183,3 +183,16 @@ h1 {
 .spaceholder {
     height: 20px;
 }
+
+
+
+
+
+/* Set the size of the div element that contains the map */
+#map {
+  height: 400px;
+  /* The height is 400 pixels */
+  width: 100%;
+  /* The width is the width of the web page */
+}
+

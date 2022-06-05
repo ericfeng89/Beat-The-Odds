@@ -1,5 +1,6 @@
 import os
 import redis
+import re #for map
 from datetime import datetime
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from flask_session import Session
@@ -211,8 +212,13 @@ def index():
         # Calculate grand total value of all assets
         grandTotal = totalCost + availableCash
 
+        if not os.environ.get("API_KEY"):
+            raise RuntimeError("API_KEY not set")
+    #    return render_template("index.html", key=os.environ.get("API_KEY"))
+
+        print(os.environ.get("API_KEY"))
         # Render page with information
-        return render_template("index.html", houses = houses, houseListLength = houseListLength, price = price, availableCash = usd(availableCash), grandTotal = usd(grandTotal))
+        return render_template("index.html", key = os.environ.get("API_KEY"), houses = houses, houseListLength = houseListLength, price = price, availableCash = usd(availableCash), grandTotal = usd(grandTotal))
 
 
 @application.route("/buy", methods=["GET", "POST"])
@@ -488,6 +494,9 @@ def sell():
 
         # Render success page with infomation about transaction
         return render_template("sold.html", houseID = houseID)
+
+
+@application.route("/update")
 
 
 # def errorhandler(e):

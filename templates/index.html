@@ -5,32 +5,62 @@
 {% endblock %}
 
 {% block main %}
-<div class="container">
-    <img src="../static/images/home.svg" class="background" id="home">
-    <h1>Home</h1>
-    <table class="table table-hover table-md-responsive">
-        <tr class="thead-light">
-            <th scope="col">Properties Owned</th>
-            <th scope="col">Current Price</th>
-        </tr>
-        {% for i in range(houseListLength) %}
-        <tr>
-            <td>{{ houses[i] }}</td>
-            <td>${{ price[i] }}</td>
-        </tr>
-        {% endfor %}
-        <tr>
-            <td></td>
-            <td></td>
-            <td><strong>Cash Balance:</strong></td>
-            <td>{{ availableCash }}</td>
-         </tr>
-         <tr>
-             <td></td>
-             <td></td>
-             <td><strong>Cumulative Value of Property Plus Cash:</strong></td>
-            <td><strong>{{ grandTotal }}</strong></td>
-         </tr>
-    </table>
-</div>
+
+
+<html>
+  <head>
+    <title>A Map for the Boys</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+
+    <link rel="stylesheet" type="text/css" href="../static/styles.css" />
+    <script type="module" src="../static/scripts.js"></script>
+  </head>
+  <body>
+    <br>
+    <br>
+    <h3>A Map for the Boys</h3>
+    <!--The div element for the map -->
+    <div id="map"></div>
+
+    <!--
+     The `defer` attribute causes the callback to execute after the full HTML
+     document has been parsed. For non-blocking uses, avoiding race conditions,
+     and consistent behavior across browsers, consider loading using Promises
+     with https://www.npmjs.com/package/@googlemaps/js-api-loader.
+    -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBPyVqI0IcUyzNZNIZtZsaVmDEK2V8w_iQ&callback=initMap&v=weekly"
+      defer
+    ></script>
+  </body>
+
+  <div class="container">
+      <img src="../static/images/home.svg" class="background" id="home">
+      <h1>Home</h1>
+      <table class="table table-hover table-md-responsive">
+          <tr class="thead-light">
+              <th scope="col">Properties Owned</th>
+              <th scope="col">Current Price</th>
+          </tr>
+          {% for i in range(houseListLength) %}
+          <tr>
+              <td>{{ houses[i] }}</td>
+              <td>${{ price[i] }}</td>
+          </tr>
+          {% endfor %}
+          <tr>
+              <td></td>
+              <td></td>
+              <td><strong>Cash Balance:</strong></td>
+              <td>{{ availableCash }}</td>
+           </tr>
+           <tr>
+               <td></td>
+               <td></td>
+               <td><strong>Cumulative Value of Property Plus Cash:</strong></td>
+              <td><strong>{{ grandTotal }}</strong></td>
+           </tr>
+      </table>
+  </div>
+</html>
 {% endblock %}

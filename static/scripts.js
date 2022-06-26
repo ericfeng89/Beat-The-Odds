@@ -1,5 +1,8 @@
+
 // Initialize and add the map
 function initMap() {
+  var myLatlng = new google.maps.LatLng(-15.363882,131.044922);
+
   // The location of Uluru
   const uluru = { lat: -25.344, lng: 131.031 };
   // The map, centered at Uluru
@@ -7,6 +10,26 @@ function initMap() {
     zoom: 4,
     center: uluru,
   });
+
+  let parameters = {
+  };
+  $.getJSON("/latlongs", parameters, function(data) {
+
+       // Add new markers to map
+       for (let i = 0; i < data[0].length; i++)
+       {
+           const marker0 = new google.maps.Marker({
+              position: { lat: data[0][i], lng: data[1][i] },
+              map: map,
+           })
+       }
+    });
+
+  var marker1 = new google.maps.Marker({
+    position: myLatlng,
+    map: map,
+  });
+
   // The marker, positioned at Uluru
   const marker = new google.maps.Marker({
     position: uluru,
@@ -333,8 +356,6 @@ $(document).ready(function() {
 
     // Configure UI once Google Map is idle (i.e., loaded)
     google.maps.event.addListenerOnce(map, "idle", configure);
-
-    console.log("map:", map);
 });
 
 
@@ -374,7 +395,6 @@ function addMarker(place)
 
         $.getJSON("/articles", parameters, function(data, textStatus, jqXHR) {
             articles = data;
-            console.log(articles);
 
             let articleList = '<ul class="article-list">';
 

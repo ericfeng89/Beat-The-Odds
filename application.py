@@ -496,7 +496,13 @@ def sell():
         return render_template("sold.html", houseID = houseID)
 
 
-@application.route("/update")
+@application.route("/latlongs")
+def latlongs():
+
+ #   results = db.execute("SELECT * FROM places WHERE postal_code LIKE :q OR place_name LIKE :q OR admin_code1 LIKE :q", q=q)
+
+    results = [[4, 75, 34, 45], [65, 22, 54, 75]]
+    return jsonify(results)
 
 
 # def errorhandler(e):

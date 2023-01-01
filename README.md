@@ -1,6 +1,6 @@
 Home Hoarders
 
-Flask web app for buying and selling Real Estate properties. Inspired by Harvard's CS50 Finance project, a web app for buying and selling stocks that Eric developed for a class back in high school. Written by Eric Feng and Adam Weiss.
+Flask web app for buying and selling Real Estate properties. Written by Eric Feng and Adam Weiss.
 
 Front-End: HTML/CSS, Google Maps API
 

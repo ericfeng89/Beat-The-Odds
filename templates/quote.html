@@ -8,12 +8,18 @@
 <div class="container">
     <div class="row">
         <div class="col-md-6 text-md-left mt-5">
-            <h1>Enter a house ID to obtain the current price</h1>
+            <h1>Enter the following information below:</h1>
             <form action="/quote" method="post" class="mt-5">
                 <div class="form-group">
-                    <input autocomplete="off" autofocus class="form-control" name="houseID" placeholder="House ID" type="text">
+                    <input autocomplete="off" autofocus class="form-control" name="freePlayAmount" placeholder="Free Play Amount ($)" type="text">
                 </div>
-                <button class="btn btn-outline-success mt-2" type="submit">Quote</button>
+                <div class="form-group">
+                    <input autocomplete="off" autofocus class="form-control" name="freePlayLine" placeholder="Free Play Line" type="text">
+                </div>
+                <div class="form-group">
+                    <input autocomplete="off" autofocus class="form-control" name="hedgeLine" placeholder="Hedge Line" type="text">
+                </div>
+                <button class="btn btn-outline-success mt-2" type="submit">Calculate</button>
             </form>
         </div>
         <div class="col-md-6">

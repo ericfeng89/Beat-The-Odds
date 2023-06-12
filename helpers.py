@@ -56,3 +56,31 @@ def lookup(id):
 def usd(value):
     """Format value as USD."""
     return f"${value:,.2f}"
+
+
+def checkInt(str):
+    try:
+        int(str)
+        return True
+    except ValueError:
+        return False
+
+
+#Given wager, odds, and whether it's a free bet, returns the potential payout
+def payout(wager, odds, decimal=True, free=False):
+    if not decimal:
+        odds = americanToDecimal(odds)
+
+    payout = wager * odds
+
+    if free:
+        payout -= wager
+
+    return payout
+
+
+def americanToDecimal(odds):
+    if odds > 0:
+        return odds/100 + 1
+    else:
+        return 100/(-odds) + 1

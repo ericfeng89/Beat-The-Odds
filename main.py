@@ -1,6 +1,10 @@
+import operator
 import os
 import redis
-import re #for map
+import json
+import copy
+import requests
+import logging
 from datetime import datetime
 from flask import Flask, flash, jsonify, redirect, render_template, request, session
 from flask_session import Session
@@ -9,7 +13,7 @@ from flask_marshmallow import Marshmallow
 from tempfile import mkdtemp
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
-from helpers import errorPage, login_required, usd
+from helpers import errorPage, login_required, usd, checkInt, payout, americanToDecimal
 
 # Configure application
 application = Flask(__name__)
@@ -163,12 +167,152 @@ def landing():
     return render_template("landing.html")
 
 @application.route("/home")
-@login_required
+#@login_required
 def index():
     # Obtain user id
-    user = session["user_id"]
-    print("user: ", user)
+   # user = session["user_id"]
+   # print("user: ", user)
 
+    API_KEY = 'f200f8c9ef26dfab29af8aa4dec1085f'
+    SPORT = 'upcoming'
+    REGIONS = 'us'  # uk | us | eu | au. Multiple can be specified if comma delimited
+    MARKETS = 'h2h,totals'  # h2h | spreads | totals. Multiple can be specified if comma delimited
+    ODDS_FORMAT = 'american'  # decimal | american
+    DATE_FORMAT = 'iso'  # iso | unix
+
+    sports_response = requests.get(
+        f'https://api.the-odds-api.com/v4/sports/{SPORT}/odds',
+        params={
+            'api_key': API_KEY,
+            'regions': REGIONS,
+            'markets': MARKETS,
+            'oddsFormat': ODDS_FORMAT,
+            'dateFormat': DATE_FORMAT,
+        }
+    )
+
+
+    oddsData = sports_response.json()
+    print(oddsData)
+  #  oddsFile = open("odds.json")
+  #  oddsData = json.load(oddsFile)
+
+    filteredData = []
+
+    for game in oddsData:
+        for bookmaker in game["bookmakers"]:
+            for market in bookmaker["markets"]:
+                for outcome in market["outcomes"]:
+                    dict = {
+                        "sport": game["sport_title"],
+                        "matchup": game["away_team"] + " vs. " + game["home_team"],
+                        "type": market["key"],
+                        "bookmaker": bookmaker["title"],
+                        "selection": outcome["name"],
+                        "odds": outcome["price"]
+                    }
+                    if bookmaker["title"] != "MyBookie.ag":
+                        filteredData.append(dict)
+
+    sortedData = sorted(filteredData, key=operator.itemgetter("sport", "matchup", "type", "selection", "odds", "bookmaker"), reverse=True)
+
+    prevSport = ""
+    prevMatchup = ""
+    prevType = ""
+    prevSelection = ""
+
+    bestOddsList = []
+    for entry in sortedData:
+        if not (prevSport == entry["sport"] and prevMatchup == entry["matchup"] and prevType == entry["type"] and prevSelection == entry["selection"]):
+            if entry["odds"] > 0:
+                entry["odds"] = "+" + str(entry["odds"])
+            else:
+                entry["odds"] = str(entry["odds"])
+
+            bestOddsList.append(entry)
+            prevSport = entry["sport"]
+            prevMatchup = entry["matchup"]
+            prevType = entry["type"]
+            prevSelection = entry["selection"]
+
+    prevMatchup = ""
+    prevType = ""
+    bestOddsDisplay = []
+    newList = []
+    for line in bestOddsList:
+        cpy = copy.deepcopy(line)
+        if cpy["matchup"] == prevMatchup and cpy["type"] == prevType:
+            newList[-1]["options"].append(
+                {
+                    "bookmaker": cpy["bookmaker"],
+                    "selection": cpy["selection"],
+                    "odds": cpy["odds"]
+                }
+            )
+
+        else:
+            cpy["options"] = [{
+                "bookmaker": cpy["bookmaker"],
+                "selection": cpy["selection"],
+                "odds": cpy["odds"]
+            }]
+            del cpy["bookmaker"]
+            del cpy["selection"]
+            del cpy["odds"]
+
+            newList.append(cpy)
+
+            prevMatchup = cpy["matchup"]
+            prevType = cpy["type"]
+
+        bestOddsDisplay.append(cpy)
+
+
+
+    for line in newList:
+        if len(line["options"]) == 2:
+            total = 100
+            odds1 = americanToDecimal(float(line["options"][0]["odds"]))
+            odds2 = americanToDecimal(float(line["options"][1]["odds"]))
+
+            print(odds1)
+            print(odds2)
+
+            amount1 = total / (1 + odds1 / odds2)
+            amount2 = total / (1 + odds2 / odds1)
+
+            profit = payout(amount1, odds1) - total
+            profitPct = round(profit / total * 100, 2)
+
+            line["profit"] = profitPct
+            line["ratio"] = str(round(amount1, 1)) + " : " + str(round(amount2, 1))
+
+        elif len(line["options"]) == 3:
+            total = 100
+            odds1 = americanToDecimal(float(line["options"][0]["odds"]))
+            odds2 = americanToDecimal(float(line["options"][1]["odds"]))
+            odds3 = americanToDecimal(float(line["options"][2]["odds"]))
+
+            amount1 = total / (1 + odds1 / odds2 + odds1 / odds3)
+            amount2 = total / (1 + odds2 / odds1 + odds2 / odds3)
+            amount3 = total / (1 + odds3 / odds1 + odds3 / odds2)
+
+            profit = payout(amount1, odds1) - total
+            profitPct = round(profit / total * 100, 2)
+
+            line["profit"] = profitPct
+            line["ratio"] = str(round(amount1, 1)) + " : " + str(round(amount2, 1)) + " : " + str(round(amount3, 1))
+
+        else:
+            line["profit"] = -1000
+            line["ratio"] = -1000
+
+    newList = sorted(newList, key=operator.itemgetter("profit"), reverse=True)
+
+    return render_template("index.html", data = newList)
+
+    oddsFile.close()
+'''
     # Obtain available cash
     availableCash = (Users.query.filter_by(id = user).first()).cash
     print("availableCash: ", availableCash)
@@ -212,14 +356,14 @@ def index():
         # Calculate grand total value of all assets
         grandTotal = totalCost + availableCash
 
-        if not os.environ.get("API_KEY"):
-            raise RuntimeError("API_KEY not set")
+  #      if not os.environ.get("API_KEY"):
+   #         raise RuntimeError("API_KEY not set")
     #    return render_template("index.html", key=os.environ.get("API_KEY"))
 
-        print(os.environ.get("API_KEY"))
+    #    print(os.environ.get("API_KEY"))
         # Render page with information
         return render_template("index.html", key = os.environ.get("API_KEY"), houses = houses, houseListLength = houseListLength, price = price, availableCash = usd(availableCash), grandTotal = usd(grandTotal))
-
+'''
 
 @application.route("/buy", methods=["GET", "POST"])
 @login_required
@@ -340,7 +484,7 @@ def login():
         try:
             rows.username
 
-        # NoneType is returned and therefore username does't exist in database
+        # NoneType is returned and therefore username doesn't exist in database
         except AttributeError:
              return errorPage(blockTitle="No Data", errorMessage = "User doesn't exist", imageSource = "no-data.svg")
 
@@ -360,7 +504,6 @@ def login():
     else:
         return render_template("login.html")
 
-
 @application.route("/logout")
 def logout():
     """Log user out"""
@@ -378,16 +521,58 @@ def quote():
     if request.method == "GET":
         return render_template("quote.html")
     else:
-        houseID = request.form.get("houseID")
-        data = mytable.query.filter_by(house_id = houseID).first()
-        print("data:", data)
+        freePlayAmount = float(request.form.get("freePlayAmount"))
+        freePlayLine = float(request.form.get("freePlayLine"))
+        hedgeLine = float(request.form.get("hedgeLine"))
 
-        # User error handling: stop empty symbol and shares fields, stop invalid symbols, and negative share numbers
-        if not houseID:
-            return errorPage(blockTitle="Bad Request", errorMessage="Please enter a valid house ID",
+        print(freePlayAmount)
+        print(freePlayLine)
+        print(hedgeLine)
+
+        freePlayPayout = payout(freePlayAmount, freePlayLine, True)
+        freePlayPayout = payout(freePlayAmount, freePlayLine, False)
+
+        print(freePlayPayout)
+
+        if hedgeLine < 0:
+            hedgeBetAmount = freePlayPayout/(1 + 100/-hedgeLine)
+        else:
+            hedgeBetAmount = freePlayPayout/(1 + hedgeLine/100)
+
+    #    expProfit = freePlayPayout - hedgeBetAmount
+        expProfit = freePlayPayout - freePlayAmount - hedgeBetAmount
+        profitPct = round(expProfit / freePlayAmount * 100, 2)
+
+
+        if not (freePlayAmount and hedgeLine and freePlayLine):
+            return errorPage(blockTitle="Bad Request", errorMessage="At least one entry invalid",
                              imageSource="bad-request.svg")
 
-        return render_template("quoted.html", data = data)
+        return render_template("quoted.html", hedgeBetAmount=usd(hedgeBetAmount), expProfit=usd(expProfit), profitPct=profitPct)
+
+@application.route("/convert", methods=["GET", "POST"])
+@login_required
+def convert():
+    if request.method == "GET":
+        return render_template("convert.html")
+    else:
+        odds = request.form.get("americanOdds")
+
+        if not odds:
+            return errorPage(blockTitle="Bad Request", errorMessage="Please enter valid odds",
+                         imageSource="bad-request.svg")
+        elif checkInt(odds) and int(odds) <= -100:
+            odds = float(odds)
+            percent = round(-odds/(-odds+100)*100, 2)
+        elif checkInt(odds) and int(odds) >= 100:
+   #     elif odds[0] == '+' and checkInt(odds[1:]) and int(odds[1:]) >= 100:
+            odds = float(odds)
+            percent = round(100/(odds+100)*100, 2)
+        else:
+            return errorPage(blockTitle="Bad Request", errorMessage="Please enter valid odds",
+                             imageSource="bad-request.svg")
+
+        return render_template("converted.html", percent = percent)
 
 
 @application.route("/register", methods=["GET", "POST"])
@@ -494,26 +679,6 @@ def sell():
 
         # Render success page with infomation about transaction
         return render_template("sold.html", houseID = houseID)
-
-
-@application.route("/latlongs")
-def latlongs():
-    fakeLats = []
-    fakeLongs = []
-
-    for i in range(mytable.query.count()):
-        lat1 = float(mytable.query.filter_by(house_id = i+1).first().proj_crypto)/10 - 100
-        fakeLats.append(lat1)
-
-        lon1 = float(mytable.query.filter_by(house_id = i+1).first().actual_crypto)/10 - 100
-        fakeLongs.append(lon1)
-
-    results = [fakeLats, fakeLongs]
-    return jsonify(results)
-
-    #  user = session["user_id"]
-
-   # houseList = Portfolio.query.filter_by(user_id = user).all()
 
 
 # def errorhandler(e):

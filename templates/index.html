@@ -9,31 +9,44 @@
 <html>
   <div class="container">
       <img src="../static/images/home.svg" class="background" id="home">
-      <h1>Home</h1>
+      <h1>Today's Top Picks</h1>
+      <h6>Refresh page for most up-to-date odds!</h6>
+      <h6 style="color:red">Please note: Signup/login is temporarily disabled on beta version.</h6>
       <table class="table table-hover table-md-responsive">
           <tr class="thead-light">
-              <th scope="col">Properties Owned</th>
-              <th scope="col">Current Price</th>
+              <th scope="col">League/Tournament</th>
+              <th scope="col">Matchup</th>
+              <th scope="col">Type</th>
+              <th scope="col">Best Options</th>
+              <th scope="col">Guaranteed Profit</th>
+              <th scope="col">Money Ratio</th>
           </tr>
-          {% for i in range(houseListLength) %}
+
+          {% for game in data %}
           <tr>
-              <td>{{ houses[i] }}</td>
-              <td>${{ price[i] }}</td>
+              <td>{{ game["sport"] }}</td>
+              <td>{{ game["matchup"] }}</td>
+              <td>{{ game["type"] }}</td>
+
+              <td>
+                  <table class="table table-hover table-md-responsive" style="border: 2px solid black; padding:0px; margin:0px;">
+                      {% for outcome in game["options"] %}
+                      <tr>
+                      <td>{{ outcome["bookmaker"] }}</td>
+                      <td>{{ outcome["selection"] }}</td>
+                      <td>{{ outcome["odds"] }}</td>
+                      </tr>
+                      {% endfor %}
+
+                  </table>
+              </td>
+              <td><b>{{ game["profit"] }}%</b></td>
+              <td>{{ game["ratio"] }}</td>
           </tr>
           {% endfor %}
-          <tr>
-              <td></td>
-              <td></td>
-              <td><strong>Cash Balance:</strong></td>
-              <td>{{ availableCash }}</td>
-           </tr>
-           <tr>
-               <td></td>
-               <td></td>
-               <td><strong>Cumulative Value of Property Plus Cash:</strong></td>
-              <td><strong>{{ grandTotal }}</strong></td>
-           </tr>
       </table>
+      <br>
+      <br>
   </div>
 </html>
 {% endblock %}

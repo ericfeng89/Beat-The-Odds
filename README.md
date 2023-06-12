@@ -1,8 +1,8 @@
-Home Hoarders
+Beat The Odds
 
-Flask web app for buying and selling Real Estate properties. Written by Eric Feng and Adam Weiss.
+Flask web app for all things Sports Betting. Written by Eric Feng.
 
-Front-End: HTML/CSS, Google Maps API
+Front-End: HTML/CSS, Jinja2
 
 Back-End/DB: Python3, Flask, SQLalchemy, Werkzeug, Redis
 
